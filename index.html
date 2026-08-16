@@ -188,8 +188,9 @@
                 ws.onclose = function() {
                     updateUIState('disconnected');
                     if (!isForcedClose) {
-                        logMessage("WebSocket failed to connect");
+                        logMessage("Stream interrupted. Auto-reconnecting in 3s...");
                         clearInterval(reconnectInterval);
+                        reconnectInterval = setInterval(connect, 3000);
                     }
                 };
 
