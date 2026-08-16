@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archipelago Clique Client</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 0 10px; line-height: 1.5; }
+        .field { margin-bottom: 12px; }
+        .row { display: flex; gap: 10px; }
+        .row .field { flex: 1; }
+        label { display: block; font-weight: bold; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .clique-btn { background: #e0a800; color: black; margin-top: 15px; width: 100%; font-size: 18px; font-weight: bold; padding: 15px; border-radius: 8px; }
+        #goalBtn { background: #28a745; margin-top: 10px; width: 100%; font-size: 16px; }
+        #status { padding: 10px; margin-top: 15px; border-radius: 4px; font-weight: bold; text-align: center; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .connected { background: #d4edda; color: #155724; }
+        .connecting { background: #fff3cd; color: #856404; }
+        #log { background: #eee; padding: 10px; height: 180px; overflow-y: scroll; font-family: monospace; font-size: 12px; margin-top: 15px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+
+    <h2>Archipelago WebSocket & Clique Client</h2>
+    
+    <div class="row">
+        <div class="field">
+            <label for="protocol">Protocol</label>
+            <select id="protocol">
+                <option value="ws://">ws:// (Unsecure)</option>
+                <option value="wss://">wss:// (Secure)</option>
+            </select>
+        </div>
+        <div class="field" style="flex: 2;">
+            <label for="host">Host / IP</label>
+            <input type="text" id="host" placeholder="archipelago.gg">
+        </div>
+        <div class="field">
+            <label for="port">Port</label>
+            <input type="number" id="port" placeholder="38281">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="field">
+            <label for="slot">Slot Name</label>
+            <input type="text" id="slot" placeholder="Player1">
+        </div>
+        <div class="field">
+            <label for="password">Password (Optional)</label>
+            <input type="password" id="password" placeholder="Leave blank if none">
+        </div>
+    </div>
+
+    <button id="connectBtn" onclick="toggleConnection()">Connect to Server</button>
+
+    <div id="status" class="disconnected">Status: Disconnected</div>
+
+    <!-- Clique Interaction Button -->
+    <button id="cliqueBtn" class="clique-btn" onclick="sendCliqueCheck()" disabled>🔴 CLICK THE CLIQUE BUTTON</button>
+    
+    <!-- Goal Completion Button -->
+    <button id="goalBtn" onclick="sendGoalUpdate()" disabled>⚡ Send Goal Completed Packet</button>
+
+    <h3>Connection Log</h3>
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        let reconnectInterval = null;
+        let isForcedClose = false;
+        let checkedLocations = [];
+
+        // Load saved room settings
+        window.onload = function() {
+            if(localStorage.getItem('ap_protocol')) document.getElementById('protocol').value = localStorage.getItem('ap_protocol');
+            if(localStorage.getItem('ap_host')) document.getElementById('host').value = localStorage.getItem('ap_host');
+            if(localStorage.getItem('ap_port')) document.getElementById('port').value = localStorage.getItem('ap_port');
+            if(localStorage.getItem('ap_slot')) document.getElementById('slot').value = localStorage.getItem('ap_slot');
+            logMessage("Saved profile configurations loaded safely.");
+        };
+
+        function logMessage(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateUIState(state) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const goalBtn = document.getElementById('goalBtn');
+            const cliqueBtn = document.getElementById('cliqueBtn');
+
+            statusDiv.className = state;
+            if (state === 'connected') {
+                statusDiv.innerText = "Status: Connected & Authenticated";
+                connectBtn.innerText = "Disconnect";
+                goalBtn.disabled = false;
+                cliqueBtn.disabled = false;
+            } else if (state === 'connecting') {
+                statusDiv.innerText = "Status: Connecting...";
+                connectBtn.innerText = "Cancel";
+                goalBtn.disabled = true;
+                cliqueBtn.disabled = true;
+            } else {
+                statusDiv.innerText = "Status: Disconnected";
+                connectBtn.innerText = "Connect";
+                goalBtn.disabled = true;
+                cliqueBtn.disabled = true;
+            }
+        }
+
+        function toggleConnection() {
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                isForcedClose = true;
+                clearInterval(reconnectInterval);
+                ws.close();
+                logMessage("Session closed manually.");
+            } else {
+                isForcedClose = false;
+                saveSettings();
+                connect();
+            }
+        }
+
+        function saveSettings() {
+            localStorage.setItem('ap_protocol', document.getElementById('protocol').value);
+            localStorage.setItem('ap_host', document.getElementById('host').value);
+            localStorage.setItem('ap_port', document.getElementById('port').value);
+            localStorage.setItem('ap_slot', document.getElementById('slot').value);
+        }
+
+        function connect() {
+            if (ws) { ws.close(); }
+
+            const protocol = document.getElementById('protocol').value;
+            const host = document.getElementById('host').value;
+            const port = document.getElementById('port').value;
+            
+            if (!host || !port || !document.getElementById('slot').value) {
+                alert("Host, Port, and Slot Name are required for authentication.");
+                return;
+            }
+
+            const url = `${protocol}${host}:${port}`;
+            logMessage(`Connecting to ${url}...`);
+            updateUIState('connecting');
+
+            try {
+                ws = new WebSocket(url);
+
+                ws.onopen = function() {
+                    logMessage("Network channel open. Handshaking identification packet...");
+                    sendConnectPacket();
+                };
+
+                ws.onmessage = function(event) {
+                    const packets = JSON.parse(event.data);
+                    packets.forEach(packet => {
+                        if (packet.cmd === "Connected") {
+                            logMessage(`Successfully joined multiworld slot!`);
+                            checkedLocations = packet.checked_locations || [];
+                            updateUIState('connected');
+                            clearInterval(reconnectInterval); 
+                        } 
+                        else if (packet.cmd === "ConnectionRefused") {
+                            logMessage(`❌ Server Refused Connection: ${packet.errors.join(', ')}`);
+                            isForcedClose = true;
+                            ws.close();
+                        }
+                        else if (packet.cmd === "RoomUpdate") {
+                            if (packet.checked_locations) {
+                                checkedLocations = checkedLocations.concat(packet.checked_locations);
+                            }
+                        }
+                        else if (packet.cmd === "ReceivedItems") {
+                            packet.items.forEach(item => {
+                                logMessage(`Received item code: ${item.item} from player ${item.player}`);
+                            });
+                        }
+                    });
+                };
+
+                ws.onclose = function() {
+                    updateUIState('disconnected');
+                    if (!isForcedClose) {
+                        logMessage("Stream interrupted. Auto-reconnecting in 3s...");
+                        clearInterval(reconnectInterval);
+                        reconnectInterval = setInterval(connect, 3000);
+                    }
+                };
+
+                ws.onerror = function() {
+                    logMessage("WebSocket layer error detected.");
+                };
+
+            } catch (e) {
+                logMessage(`Creation fail: ${e.message}`);
+                updateUIState('disconnected');
+            }
+        }
+
+        function sendConnectPacket() {
+            const slotName = document.getElementById('slot').value;
+            const pass = document.getElementById('password').value;
+            
+            // Standard AP protocol identification payload
+            const connectPayload = [{
+                "cmd": "Connect",
+                "game": "Clique", 
+                "name": slotName,
+                "password": pass ? pass : "",
+                "uuid": "clique-web-client-id",
+                "tags": ["Tracker"],
+                "version": {"major": 0, "minor": 5, "build": 0, "class": "Version"},
+                "items_handling": 7 // Receives all item notifications
+            }];
+            
+            ws.send(JSON.stringify(connectPayload));
+        }
+
+        function sendCliqueCheck() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
