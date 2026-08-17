@@ -43,9 +43,6 @@
     <!-- ================= SCREEN 1: LOGIN ================= -->
     <div id="loginScreen" class="screen active">
         <h2>Archipelago Setup Portal</h2>
-        <div class="warning-box">
-            ⚠️ <strong>Using ws://?</strong> Ensure you have allowed "Insecure content" in your browser site settings or are running this page locally, otherwise the browser will block the raw connection.
-        </div>
         
         <div class="row">
             <div class="field">
@@ -236,9 +233,7 @@
         function checkForTargetItem(packet) {
             if (packet.cmd === "ReceivedItems") {
                 packet.items.forEach(item => {
-                    if (item.item === 69696968) {
-                        logMessage("✨ SPECIAL ITEM FOUND: Item ID 69696968 unlocked the Clique Button!");
-                        
+                    if (item.item === 69696968) {                        
                         const btn = document.getElementById('cliqueBtn');
                         if (btn) {
                             btn.disabled = false;
