@@ -190,6 +190,9 @@
                                 logMessage(`❌ Server Refusal: ${packet.errors.join(', ')}`);
                                 terminateSession();
                             }
+                            
+                            // Scan the current packet for the tracking items targets
+                            checkForTargetItem(packet);
                         });
                     } catch(e) {
                         logMessage(`Data parsing fault: ${e.message}`);
@@ -220,6 +223,17 @@
             }
         }
 
+        function checkForTargetItem(packet) {
+            if (packet.cmd === "ReceivedItems") {
+                packet.items.forEach(item => {
+                    if (item.item === 69696968) {
+                        logMessage("✨ SPECIAL ITEM FOUND: You received Item ID 69696968!");
+                        alert("🎉 Notification: You have received Item ID 69696968!");
+                    }
+                });
+            }
+        }
+
         function terminateSession() {
             isForcedClose = true;
             clearInterval(reconnectInterval);
@@ -234,7 +248,7 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const packet = [{
                     "cmd": "LocationChecks",
-                    "locations": [69696969]
+                    "locations": [2147483647]
                 }];
                 ws.send(JSON.stringify(packet));
                 logMessage("Dispatched Payload: LocationChecks (Button Toggled)");
