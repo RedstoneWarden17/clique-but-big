@@ -13,15 +13,21 @@
         .row .field { flex: 1; }
         label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
         input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        button { padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold; width: 100%; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        /* Action Buttons Grid */
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button { padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold; width: 100%; }
+        #connectBtn { background: #007bff; color: white; }
+        #connectBtn:disabled { background: #ccc; cursor: not-allowed; }
+        #cancelBtn { background: #dc3545; color: white; }
+        #cancelBtn:disabled { background: #f5c6cb; color: #721c24; cursor: not-allowed; opacity: 0.6; }
         
         /* Game Dashboard Styling */
         .clique-panel { background: #fff; border: 2px solid #e0a800; border-radius: 8px; padding: 20px; text-align: center; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .clique-btn { background: #ffc107; color: #212529; font-size: 22px; font-weight: bold; padding: 25px; border-radius: 50px; border: 3px solid #e0a800; text-transform: uppercase; cursor: pointer; box-shadow: 0 6px #b58700; position: relative; }
+        .clique-btn { background: #ffc107; color: #212529; font-size: 22px; font-weight: bold; padding: 25px; border-radius: 50px; border: 3px solid #e0a800; text-transform: uppercase; cursor: pointer; box-shadow: 0 6px #b58700; position: relative; width: 100%; }
         .clique-btn:active { box-shadow: 0 2px #b58700; top: 4px; }
-        #goalBtn { background: #28a745; margin-top: 20px; font-size: 16px; }
-        #disconnectBtn { background: #dc3545; margin-top: 10px; font-size: 14px; padding: 8px; }
+        #goalBtn { background: #28a745; color: white; margin-top: 20px; font-size: 16px; }
+        #disconnectBtn { background: #6c757d; color: white; margin-top: 15px; font-size: 14px; padding: 8px; }
         
         #status { padding: 10px; margin-top: 15px; border-radius: 4px; font-weight: bold; text-align: center; }
         .disconnected { background: #f8d7da; color: #721c24; }
@@ -37,7 +43,7 @@
     <div id="loginScreen" class="screen active">
         <h2>Archipelago Setup Portal</h2>
         <div class="warning-box">
-            ⚠️ <strong>Using ws://?</strong> Make sure you clicked your browser URL bar's padlock/tune icon and changed <strong>Insecure content</strong> to <strong>Allow</strong>, otherwise this page will block connection attempts.
+            ⚠️ <strong>Using ws://?</strong> Ensure you have allowed "Insecure content" in your browser site settings or are running this page locally, otherwise the browser will block the raw connection.
         </div>
         
         <div class="row">
@@ -69,7 +75,10 @@
             </div>
         </div>
 
-        <button id="connectBtn" onclick="initiateSession()">Authenticate & Connect</button>
+        <div class="btn-group">
+            <button id="connectBtn" onclick="initiateSession()">Connect</button>
+            <button id="cancelBtn" onclick="terminateSession()" disabled>Cancel</button>
+        </div>
         <div id="status" class="disconnected">Status: Offline</div>
     </div>
 
@@ -96,13 +105,12 @@
         let reconnectInterval = null;
         let isForcedClose = false;
 
-        // Auto Load Storage Keys
         window.onload = function() {
             if(localStorage.getItem('ap_protocol')) document.getElementById('protocol').value = localStorage.getItem('ap_protocol');
             if(localStorage.getItem('ap_host')) document.getElementById('host').value = localStorage.getItem('ap_host');
             if(localStorage.getItem('ap_port')) document.getElementById('port').value = localStorage.getItem('ap_port');
             if(localStorage.getItem('ap_slot')) document.getElementById('slot').value = localStorage.getItem('ap_slot');
-            logMessage("System ready. Configure credentials above.");
+            logMessage("System ready. Standard connection routes enabled.");
         };
 
         function logMessage(msg) {
@@ -119,7 +127,6 @@
         function initiateSession() {
             isForcedClose = false;
             
-            // Save settings locally
             localStorage.setItem('ap_protocol', document.getElementById('protocol').value);
             localStorage.setItem('ap_host', document.getElementById('host').value);
             localStorage.setItem('ap_port', document.getElementById('port').value);
@@ -132,9 +139,9 @@
             if (ws) { ws.close(); }
 
             const protocol = document.getElementById('protocol').value;
-            const host = document.getElementById('host').value;
-            const port = document.getElementById('port').value;
-            const slot = document.getElementById('slot').value;
+            const host = document.getElementById('host').value.trim();
+            const port = document.getElementById('port').value.trim();
+            const slot = document.getElementById('slot').value.trim();
             
             if (!host || !port || !slot) {
                 alert("Please fill out Host, Port, and Slot Name fields.");
@@ -142,19 +149,20 @@
             }
 
             const url = `${protocol}${host}:${port}`;
-            logMessage(`Opening WebSocket tunnel to: ${url}`);
+
+            logMessage(`Opening WebSocket address: ${url}`);
             document.getElementById('status').className = "connecting";
-            document.getElementById('status').innerText = "Status: Transmitting Handshake...";
+            document.getElementById('status').innerText = "Status: Connecting...";
             document.getElementById('connectBtn').disabled = true;
+            document.getElementById('cancelBtn').disabled = false; 
 
             try {
                 ws = new WebSocket(url);
 
                 ws.onopen = function() {
-                    logMessage("WebSocket layer open. Transmitting identification packet...");
+                    logMessage("WebSocket pipe active. Dispatching verification payload...");
                     const pass = document.getElementById('password').value;
                     
-                    // Archipelago Authentication Handshake Payload
                     const connectPayload = [{
                         "cmd": "Connect",
                         "game": "Clique", 
@@ -173,9 +181,9 @@
                         const packets = JSON.parse(event.data);
                         packets.forEach(packet => {
                             if (packet.cmd === "Connected") {
-                                logMessage(`✅ Handshake Verified! Slot assigned successfully.`);
+                                logMessage(`✅ Handshake Verified! Welcome back.`);
                                 document.getElementById('sessionTitle').innerText = `Target Room: ${host}:${port} | Slot: ${slot}`;
-                                switchScreen('gameScreen'); // Transition layout view 
+                                switchScreen('gameScreen'); 
                                 clearInterval(reconnectInterval);
                             } 
                             else if (packet.cmd === "ConnectionRefused") {
@@ -184,24 +192,26 @@
                             }
                         });
                     } catch(e) {
-                        logMessage(`Data processing fault: ${e.message}`);
+                        logMessage(`Data parsing fault: ${e.message}`);
                     }
                 };
+
                 ws.onclose = function() {
                     switchScreen('loginScreen');
                     document.getElementById('status').className = "disconnected";
                     document.getElementById('status').innerText = "Status: Disconnected";
                     document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('cancelBtn').disabled = true; 
 
                     if (!isForcedClose) {
-                        logMessage("Stream dropped by remote peer. Retrying connection in 3s...");
+                        logMessage("Stream dropped. Retrying connection in 3s...");
                         clearInterval(reconnectInterval);
                         reconnectInterval = setInterval(connectToServer, 3000);
                     }
                 };
 
                 ws.onerror = function(err) {
-                    logMessage("Network block detected. Check browser security settings for unsecure scripts.");
+                    logMessage("Connection pipeline error.");
                 };
 
             } catch (e) {
@@ -215,7 +225,9 @@
             clearInterval(reconnectInterval);
             if (ws) { ws.close(); }
             switchScreen('loginScreen');
-            logMessage("Session killed manually.");
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('cancelBtn').disabled = true;
+            logMessage("Session closed or cancelled manually.");
         }
 
         function sendCliqueCheck() {
