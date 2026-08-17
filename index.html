@@ -263,7 +263,7 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const packet = [{
                     "cmd": "LocationChecks",
-                    "locations": [2147483647]
+                    "locations": [69696969]
                 }];
                 ws.send(JSON.stringify(packet));
                 logMessage("Dispatched Payload: LocationChecks (Button Toggled)");
