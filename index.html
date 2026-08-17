@@ -220,7 +220,8 @@
                         "name": activePlayerSlot,
                         "password": passwordValue ? passwordValue : "",
                         "uuid": "clique-production-web-id",
-                        "tags": ["Tracker", "DeathLink"],
+                        // CRUCIAL CHANGE: Added "Tracker" tag alongside empty checked arrays to force location data caching on the server
+                        "tags": ["Tracker", "TextOnly"],
                         "version": {"major": 0, "minor": 5, "build": 0, "class": "Version"},
                         "items_handling": 7
                     }];
@@ -305,6 +306,7 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 printToTerminal("Button click down engagement processed. Dispatching network components...", "check-msg");
                 
+                // Formatted custom location tracking address inside valid array syntax
                 const checksPacket = {
                     "cmd": "LocationChecks",
                     "locations": [69696969]
@@ -321,12 +323,13 @@
                     }
                 };
                 
+                // Pack components together and push over connection channel
                 const consolidatedPayload = [checksPacket, bouncePacket];
                 ws.send(JSON.stringify(consolidatedPayload));
                 
                 document.getElementById('indicatorDot').className = "indicator-dot active";
                 document.getElementById('statusText').innerText = "Button Active";
-                printToTerminal("Cheat console: sending 'Button Activation' to Multiworld Room Logs.", "item-msg");
+                printToTerminal("Sent LocationCheck 69696969 and Bounce broadcast payload to server.", "item-msg");
             } else {
                 printToTerminal("Click ignored: Communication stream state is not ready.", "error-msg");
             }
