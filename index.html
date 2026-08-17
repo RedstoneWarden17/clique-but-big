@@ -26,6 +26,7 @@
         .clique-panel { background: #fff; border: 2px solid #e0a800; border-radius: 8px; padding: 20px; text-align: center; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .clique-btn { background: #ffc107; color: #212529; font-size: 22px; font-weight: bold; padding: 25px; border-radius: 50px; border: 3px solid #e0a800; text-transform: uppercase; cursor: pointer; box-shadow: 0 6px #b58700; position: relative; width: 100%; }
         .clique-btn:active { box-shadow: 0 2px #b58700; top: 4px; }
+        .clique-btn:disabled { background: #ccc; border-color: #aaa; box-shadow: none !important; cursor: not-allowed; color: #666; top: 0 !important; }
         #goalBtn { background: #28a745; color: white; margin-top: 20px; font-size: 16px; }
         #disconnectBtn { background: #6c757d; color: white; margin-top: 15px; font-size: 14px; padding: 8px; }
         
@@ -88,7 +89,8 @@
         <div style="font-size: 14px; color: #666;" id="sessionTitle">Room: Loading...</div>
         
         <div class="clique-panel">
-            <button id="cliqueBtn" class="clique-btn" onclick="sendCliqueCheck()">🔴 Press Button</button>
+            <!-- Button starts locked and disabled -->
+            <button id="cliqueBtn" class="clique-btn" onclick="sendCliqueCheck()" disabled>🔒 Locked (Requires Item)</button>
             <p style="font-size: 12px; color: #555; margin-top: 12px; font-style: italic;">Sends multiworld Location Check payload ID: 2147483647</p>
         </div>
         
@@ -183,6 +185,14 @@
                             if (packet.cmd === "Connected") {
                                 logMessage(`✅ Handshake Verified! Welcome back.`);
                                 document.getElementById('sessionTitle').innerText = `Target Room: ${host}:${port} | Slot: ${slot}`;
+                                
+                                // Ensure button resets back to locked state on a fresh login screen transition
+                                const btn = document.getElementById('cliqueBtn');
+                                if (btn) {
+                                    btn.disabled = true;
+                                    btn.innerText = "🔒 Locked (Requires Item)";
+                                }
+
                                 switchScreen('gameScreen'); 
                                 clearInterval(reconnectInterval);
                             } 
@@ -227,8 +237,13 @@
             if (packet.cmd === "ReceivedItems") {
                 packet.items.forEach(item => {
                     if (item.item === 69696968) {
-                        logMessage("✨ SPECIAL ITEM FOUND: You received Item ID 69696968!");
-                        alert("🎉 Notification: You have received Item ID 69696968!");
+                        logMessage("✨ SPECIAL ITEM FOUND: Item ID 69696968 unlocked the Clique Button!");
+                        
+                        const btn = document.getElementById('cliqueBtn');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerText = "🔴 Press Button (Unlocked)";
+                        }
                     }
                 });
             }
@@ -248,7 +263,7 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const packet = [{
                     "cmd": "LocationChecks",
-                    "locations": [69696969]
+                    "locations": [2147483647]
                 }];
                 ws.send(JSON.stringify(packet));
                 logMessage("Dispatched Payload: LocationChecks (Button Toggled)");
