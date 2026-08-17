@@ -3,276 +3,350 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Archipelago Clique Client</title>
+    <title>Clique - The Greatest Game of All Time (Custom Client)</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 0 15px; line-height: 1.5; background: #fdfdfd; color: #333; }
-        .screen { display: none; }
-        .screen.active { display: block; }
-        .field { margin-bottom: 12px; }
-        .row { display: flex; gap: 10px; }
-        .row .field { flex: 1; }
-        label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
-        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        * { box-sizing: border-box; }
+        body { font-family: sans-serif; background: #121212; color: #e0e0e0; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Action Buttons Grid */
-        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
-        button { padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold; width: 100%; }
-        #connectBtn { background: #007bff; color: white; }
-        #connectBtn:disabled { background: #ccc; cursor: not-allowed; }
-        #cancelBtn { background: #dc3545; color: white; }
-        #cancelBtn:disabled { background: #f5c6cb; color: #721c24; cursor: not-allowed; opacity: 0.6; }
+        /* Application Split Layout mimicking official client */
+        .application { display: flex; width: 100vw; height: 100vh; }
         
-        /* Game Dashboard Styling */
-        .clique-panel { background: #fff; border: 2px solid #e0a800; border-radius: 8px; padding: 20px; text-align: center; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .clique-btn { background: #ffc107; color: #212529; font-size: 22px; font-weight: bold; padding: 25px; border-radius: 50px; border: 3px solid #e0a800; text-transform: uppercase; cursor: pointer; box-shadow: 0 6px #b58700; position: relative; width: 100%; }
-        .clique-btn:active { box-shadow: 0 2px #b58700; top: 4px; }
-        .clique-btn:disabled { background: #ccc; border-color: #aaa; box-shadow: none !important; cursor: not-allowed; color: #666; top: 0 !important; }
-        #goalBtn { background: #28a745; color: white; margin-top: 20px; font-size: 16px; }
-        #disconnectBtn { background: #6c757d; color: white; margin-top: 15px; font-size: 14px; padding: 8px; }
+        /* Chat Panel Left */
+        .chat-panel { width: 320px; background: #1a1a1a; border-right: 2px solid #2d2d2d; display: flex; flex-direction: column; height: 100%; }
+        .chat-header { padding: 15px; background: #222; font-weight: bold; border-bottom: 1px solid #2d2d2d; color: #ffc107; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.6; }
+        .chat-messages div { margin-bottom: 8px; border-bottom: 1px solid #222; padding-bottom: 4px; }
+        .system-msg { color: #888; font-style: italic; }
+        .item-msg { color: #00ff00; font-weight: bold; }
+        .check-msg { color: #00bcd4; }
+        .error-msg { color: #ff5252; }
         
-        #status { padding: 10px; margin-top: 15px; border-radius: 4px; font-weight: bold; text-align: center; }
-        .disconnected { background: #f8d7da; color: #721c24; }
-        .connected { background: #d4edda; color: #155724; }
-        .connecting { background: #fff3cd; color: #856404; }
-        #log { background: #222; color: #00ff00; padding: 12px; height: 160px; overflow-y: scroll; font-family: monospace; font-size: 12px; margin-top: 15px; border-radius: 4px; border: 1px solid #000; }
-        .warning-box { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
+        /* Game Canvas Panel Right */
+        .game-panel { flex: 1; display: flex; flex-direction: column; position: relative; background: #141414; }
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: center; padding: 40px; }
+        .screen.active { display: flex; }
+        
+        /* Portal Setup Overlay Box */
+        .login-box { background: #1e1e1e; border: 2px solid #3d3d3d; border-radius: 8px; padding: 30px; max-width: 450px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .login-box h2 { margin-top: 0; text-align: center; color: #fff; font-size: 22px; margin-bottom: 20px; }
+        .field { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 13px; color: #aaa; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px; background: #2b2b2b; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 14px; }
+        input:focus, select:focus { border-color: #ffc107; outline: none; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { padding: 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold; text-transform: uppercase; transition: all 0.2s; }
+        #connectBtn { background: #ffc107; color: #111; flex: 2; }
+        #connectBtn:hover { background: #ffe082; }
+        #connectBtn:disabled { background: #444; color: #888; cursor: not-allowed; }
+        #cancelBtn { background: #dc3545; color: white; flex: 1; }
+        #cancelBtn:disabled { background: #5a2328; color: #a36267; cursor: not-allowed; }
+        
+        /* Interactive Room Board Elements */
+        .room-info { position: absolute; top: 20px; left: 20px; font-size: 14px; color: #777; font-family: monospace; }
+        .button-frame { background: #252525; border: 4px solid #3a3a3a; border-radius: 12px; padding: 40px; text-align: center; max-width: 400px; width: 100%; box-shadow: 0 12px 35px rgba(0,0,0,0.6); }
+        
+        /* The Big Red Button Core Styling */
+        .clique-btn { background: #dc3545; color: white; font-size: 18px; font-weight: bold; padding: 30px 20px; border-radius: 8px; border: none; border-bottom: 6px solid #9c1c26; cursor: pointer; width: 100%; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.3); letter-spacing: 0.5px; }
+        .clique-btn:active:not(:disabled) { border-bottom: 2px solid #9c1c26; top: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        
+        /* Locked Button State */
+        .clique-btn:disabled { background: #444 !important; border-bottom: 6px solid #2d2d2d !important; color: #777 !important; cursor: not-allowed; box-shadow: none !important; transform: none !important; top: 0 !important; }
+        .clique-btn.unlocked { background: #28a745; border-bottom-color: #1e7e34; }
+        
+        /* Desk Item Indicator Display */
+        .desk-item { margin-bottom: 25px; display: flex; justify-content: center; align-items: center; background: #1a1a1a; padding: 15px; border-radius: 6px; border: 1px dashed #444; }
+        .desk-item span { font-size: 13px; font-weight: bold; color: #aaa; letter-spacing: 0.5px; }
+        
+        .status-container { margin-top: 25px; display: flex; align-items: center; justify-content: center; gap: 10px; background: #1e1e1e; padding: 10px; border-radius: 6px; }
+        .indicator-dot { width: 12px; height: 12px; background: #dc3545; border-radius: 50%; box-shadow: 0 0 8px #dc3545; }
+        .indicator-dot.active { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        .status-text { font-size: 13px; font-weight: bold; text-transform: uppercase; color: #ccc; font-family: monospace; }
+        
+        #goalBtn { background: #00bcd4; color: #111; margin-top: 20px; font-size: 14px; max-width: 400px; }
+        #disconnectBtn { background: #333; color: #aaa; margin-top: 10px; font-size: 12px; padding: 8px; max-width: 400px; }
+        #disconnectBtn:hover { color: #fff; background: #444; }
     </style>
 </head>
 <body>
 
-    <!-- ================= SCREEN 1: LOGIN ================= -->
-    <div id="loginScreen" class="screen active">
-        <h2>Archipelago Setup Portal</h2>
+    <div class="application">
         
-        <div class="row">
-            <div class="field">
-                <label for="protocol">Protocol</label>
-                <select id="protocol">
-                    <option value="ws://">ws:// (Unsecure)</option>
-                    <option value="wss://">wss:// (Secure)</option>
-                </select>
-            </div>
-            <div class="field" style="flex: 2;">
-                <label for="host">Host / Server IP</label>
-                <input type="text" id="host" placeholder="archipelago.gg">
-            </div>
-            <div class="field">
-                <label for="port">Port</label>
-                <input type="number" id="port" placeholder="38281">
+        <!-- ================= CHAT LOG FEED PANELS ================= -->
+        <div class="chat-panel">
+            <div class="chat-header">Clique Communications Terminal</div>
+            <div id="chatMessages" class="chat-messages">
+                <div class="system-msg">System initialized. Awaiting network routing rules...</div>
             </div>
         </div>
-
-        <div class="row">
-            <div class="field">
-                <label for="slot">Slot Name</label>
-                <input type="text" id="slot" placeholder="Player1">
+        
+        <!-- ================= MAIN GAME WINDOW CONTROL ================= -->
+        <div class="game-panel">
+            
+            <!-- SCREEN 1: ROOM ROUTING CONNECT -->
+            <div id="loginScreen" class="screen active">
+                <div class="login-box">
+                    <h2>Clique Multiworld Gate</h2>
+                    
+                    <div class="row">
+                        <div class="field">
+                            <label for="protocol">Protocol Layer</label>
+                            <select id="protocol">
+                                <option value="ws://">ws:// (Direct Connection)</option>
+                                <option value="wss://">wss:// (Secure Tunnel)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row" style="display: flex; gap: 10px;">
+                        <div class="field" style="flex: 2;">
+                            <label for="host">Server Host Address</label>
+                            <input type="text" id="host" placeholder="archipelago.gg">
+                        </div>
+                        <div class="field" style="flex: 1;">
+                            <label for="port">Port</label>
+                            <input type="number" id="port" placeholder="38281">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="field">
+                            <label for="slot">Slot Name</label>
+                            <input type="text" id="slot" placeholder="CliqueMaster">
+                        </div>
+                        <div class="field">
+                            <label for="password">Security Password (Optional)</label>
+                            <input type="password" id="password" placeholder="Leave blank if none">
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button id="connectBtn" onclick="initiatePortalSession()">Connect to Archipelago</button>
+                        <button id="cancelBtn" onclick="killSessionNetwork()" disabled>Cancel</button>
+                    </div>
+                </div>
             </div>
-            <div class="field">
-                <label for="password">Password (Optional)</label>
-                <input type="password" id="password" placeholder="Leave blank if none">
+            
+            <!-- SCREEN 2: GAME BOARD ROOM PLATFORM -->
+            <div id="gameScreen" class="screen">
+                <div id="roomTitleBadge" class="room-info">Room: Loading parameters...</div>
+                
+                <div class="button-frame">
+                    <!-- Desk Item Tracker Representation -->
+                    <div class="desk-item">
+                        <span id="deskItemStatus">🔒 DESK ITEM STATUS: MISSING (ID: 69696968)</span>
+                    </div>
+                    
+                    <!-- The Interactive Click Button Face -->
+                    <button id="cliqueBtn" class="clique-btn" onclick="fireCliqueAction()" disabled>🔒 BUTTON LOCKED</button>
+                    
+                    <!-- Hardware Indicator Panel -->
+                    <div class="status-container">
+                        <div id="indicatorDot" class="indicator-dot"></div>
+                        <div id="statusText" class="status-text">Button Offline</div>
+                    </div>
+                </div>
+                
+                <button id="goalBtn" onclick="dispatchGoalPacket()">⚡ Signal Goal Completion</button>
+                <button id="disconnectBtn" onclick="killSessionNetwork()">Leave Room Session</button>
             </div>
+            
         </div>
-
-        <div class="btn-group">
-            <button id="connectBtn" onclick="initiateSession()">Connect</button>
-            <button id="cancelBtn" onclick="terminateSession()" disabled>Cancel</button>
-        </div>
-        <div id="status" class="disconnected">Status: Offline</div>
     </div>
 
-    <!-- ================= SCREEN 2: GAME BOARD ================= -->
-    <div id="gameScreen" class="screen">
-        <h2 style="margin-bottom: 5px;">Clique Playroom</h2>
-        <div style="font-size: 14px; color: #666;" id="sessionTitle">Room: Loading...</div>
-        
-        <div class="clique-panel">
-            <!-- Button starts locked and disabled -->
-            <button id="cliqueBtn" class="clique-btn" onclick="sendCliqueCheck()" disabled>🔒 Locked (Requires Item)</button>
-            <p style="font-size: 12px; color: #555; margin-top: 12px; font-style: italic;">Sends multiworld Location Check payload ID: 2147483647</p>
-        </div>
-        
-        <button id="goalBtn" onclick="sendGoalUpdate()">⚡ Complete Main Goal</button>
-        <button id="disconnectBtn" onclick="terminateSession()">Leave Server Connection</button>
-    </div>
-
-    <!-- ================= PERSISTENT LOG WINDOW ================= -->
-    <h3>System Output Log</h3>
-    <div id="log"></div>
-
+    <!-- ================= PROTOCOL PIPELINE SCRIPTING ================= -->
     <script>
         let ws = null;
-        let reconnectInterval = null;
+        let reconnectLoopTimer = null;
         let isForcedClose = false;
+        let activePlayerSlot = "";
 
         window.onload = function() {
-            if(localStorage.getItem('ap_protocol')) document.getElementById('protocol').value = localStorage.getItem('ap_protocol');
+            if(localStorage.getItem('ap_proto')) document.getElementById('protocol').value = localStorage.getItem('ap_proto');
             if(localStorage.getItem('ap_host')) document.getElementById('host').value = localStorage.getItem('ap_host');
             if(localStorage.getItem('ap_port')) document.getElementById('port').value = localStorage.getItem('ap_port');
             if(localStorage.getItem('ap_slot')) document.getElementById('slot').value = localStorage.getItem('ap_slot');
-            logMessage("System ready. Standard connection routes enabled.");
         };
 
-        function logMessage(msg) {
-            const logDiv = document.getElementById('log');
-            logDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
-            logDiv.scrollTop = logDiv.scrollHeight;
+        function printToTerminal(text, cssClass = "system-msg") {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML += `<div class="${cssClass}">[${new Date().toLocaleTimeString()}] ${text}</div>`;
+            container.scrollTop = container.scrollHeight;
         }
 
-        function switchScreen(screenId) {
+        function toggleInterfaceView(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
         }
 
-        function initiateSession() {
+        function initiatePortalSession() {
             isForcedClose = false;
             
-            localStorage.setItem('ap_protocol', document.getElementById('protocol').value);
+            localStorage.setItem('ap_proto', document.getElementById('protocol').value);
             localStorage.setItem('ap_host', document.getElementById('host').value);
             localStorage.setItem('ap_port', document.getElementById('port').value);
             localStorage.setItem('ap_slot', document.getElementById('slot').value);
 
-            connectToServer();
+            openWebSocketChannel();
         }
 
-        function connectToServer() {
+        function openWebSocketChannel() {
             if (ws) { ws.close(); }
 
             const protocol = document.getElementById('protocol').value;
             const host = document.getElementById('host').value.trim();
             const port = document.getElementById('port').value.trim();
-            const slot = document.getElementById('slot').value.trim();
+            activePlayerSlot = document.getElementById('slot').value.trim();
             
-            if (!host || !port || !slot) {
-                alert("Please fill out Host, Port, and Slot Name fields.");
+            if (!host || !port || !activePlayerSlot) {
+                alert("Host, Port, and Slot parameters are mandatory fields.");
                 return;
             }
 
-            const url = `${protocol}${host}:${port}`;
-
-            logMessage(`Opening WebSocket address: ${url}`);
-            document.getElementById('status').className = "connecting";
-            document.getElementById('status').innerText = "Status: Connecting...";
+            const endpointUrl = `${protocol}${host}:${port}`;
+            printToTerminal(`Opening communication handshake stream to: ${endpointUrl}`);
+            
             document.getElementById('connectBtn').disabled = true;
-            document.getElementById('cancelBtn').disabled = false; 
+            document.getElementById('cancelBtn').disabled = false;
 
             try {
-                ws = new WebSocket(url);
+                ws = new WebSocket(endpointUrl);
 
                 ws.onopen = function() {
-                    logMessage("WebSocket pipe active. Dispatching verification payload...");
-                    const pass = document.getElementById('password').value;
+                    printToTerminal("Network layer linked. Dispatching authentication layout payload...");
+                    const passwordValue = document.getElementById('password').value;
                     
-                    const connectPayload = [{
+                    const identityPacket = [{
                         "cmd": "Connect",
                         "game": "Clique", 
-                        "name": slot,
-                        "password": pass ? pass : "",
-                        "uuid": "clique-web-client-id",
-                        "tags": ["Tracker"],
+                        "name": activePlayerSlot,
+                        "password": passwordValue ? passwordValue : "",
+                        "uuid": "clique-production-web-id",
+                        "tags": ["Tracker", "DeathLink"],
                         "version": {"major": 0, "minor": 5, "build": 0, "class": "Version"},
                         "items_handling": 7
                     }];
-                    ws.send(JSON.stringify(connectPayload));
+                    ws.send(JSON.stringify(identityPacket));
                 };
 
                 ws.onmessage = function(event) {
                     try {
                         const packets = JSON.parse(event.data);
                         packets.forEach(packet => {
+                            
                             if (packet.cmd === "Connected") {
-                                logMessage(`✅ Handshake Verified! Welcome back.`);
-                                document.getElementById('sessionTitle').innerText = `Target Room: ${host}:${port} | Slot: ${slot}`;
+                                printToTerminal(`✅ Slot login verified successfully! Welcome back, ${activePlayerSlot}.`, "item-msg");
+                                document.getElementById('roomTitleBadge').innerText = `Room Axis: ${host}:${port} | Player Slot: ${activePlayerSlot}`;
                                 
-                                // Ensure button resets back to locked state on a fresh login screen transition
-                                const btn = document.getElementById('cliqueBtn');
-                                if (btn) {
-                                    btn.disabled = true;
-                                    btn.innerText = "🔒 Locked (Requires Item)";
-                                }
-
-                                switchScreen('gameScreen'); 
-                                clearInterval(reconnectInterval);
+                                document.getElementById('indicatorDot').className = "indicator-dot";
+                                document.getElementById('statusText').innerText = "Button Inactive";
+                                
+                                toggleInterfaceView('gameScreen'); 
+                                clearInterval(reconnectLoopTimer);
                             } 
                             else if (packet.cmd === "ConnectionRefused") {
-                                logMessage(`❌ Server Refusal: ${packet.errors.join(', ')}`);
-                                terminateSession();
+                                printToTerminal(`❌ Authentication Rejected: ${packet.errors.join(', ')}`, "error-msg");
+                                killSessionNetwork();
+                            }
+                            else if (packet.cmd === "PrintJson") {
+                                const flatText = packet.data.map(d => d.text || "").join("");
+                                printToTerminal(flatText, "system-msg");
                             }
                             
-                            // Scan the current packet for the tracking items targets
-                            checkForTargetItem(packet);
+                            evaluateInventoryPayload(packet);
                         });
-                    } catch(e) {
-                        logMessage(`Data parsing fault: ${e.message}`);
+                    } catch(err) {
+                        printToTerminal(`Payload compilation crash: ${err.message}`, "error-msg");
                     }
                 };
 
                 ws.onclose = function() {
-                    switchScreen('loginScreen');
-                    document.getElementById('status').className = "disconnected";
-                    document.getElementById('status').innerText = "Status: Disconnected";
+                    toggleInterfaceView('loginScreen');
                     document.getElementById('connectBtn').disabled = false;
                     document.getElementById('cancelBtn').disabled = true; 
 
                     if (!isForcedClose) {
-                        logMessage("Stream dropped. Retrying connection in 3s...");
-                        clearInterval(reconnectInterval);
-                        reconnectInterval = setInterval(connectToServer, 3000);
+                        printToTerminal("Pipe infrastructure closed unexpectedly. Initializing auto-recovery loop in 3s...", "error-msg");
+                        clearInterval(reconnectLoopTimer);
+                        reconnectLoopTimer = setInterval(openWebSocketChannel, 3000);
+                    } else {
+                        printToTerminal("Session connection severed safely.");
                     }
                 };
 
-                ws.onerror = function(err) {
-                    logMessage("Connection pipeline error.");
+                ws.onerror = function() {
+                    printToTerminal("Network layer flagged an operational exception threat.", "error-msg");
                 };
 
             } catch (e) {
-                logMessage(`Execution abort: ${e.message}`);
-                terminateSession();
+                printToTerminal(`Process initiation fault: ${e.message}`, "error-msg");
+                killSessionNetwork();
             }
         }
 
-        function checkForTargetItem(packet) {
+        function evaluateInventoryPayload(packet) {
             if (packet.cmd === "ReceivedItems") {
                 packet.items.forEach(item => {
-                    if (item.item === 69696968) {                        
-                        const btn = document.getElementById('cliqueBtn');
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.innerText = "🔴 Press Button (Unlocked)";
+                    if (item.item === 69696968) {
+                        printToTerminal("✨ PROGRESSION CONTEXT DETECTED: 'Button Activation' item received!", "item-msg");
+                        
+                        document.getElementById('deskItemStatus').innerText = "🔓 DESK ITEM STATUS: FOUND & CONFIRMED";
+                        
+                        const elementBtn = document.getElementById('cliqueBtn');
+                        if (elementBtn) {
+                            elementBtn.disabled = false;
+                            elementBtn.innerText = "🔴 PRESS THE BIG RED BUTTON";
+                            elementBtn.className = "clique-btn unlocked";
                         }
                     }
                 });
             }
         }
 
-        function terminateSession() {
-            isForcedClose = true;
-            clearInterval(reconnectInterval);
-            if (ws) { ws.close(); }
-            switchScreen('loginScreen');
-            document.getElementById('connectBtn').disabled = false;
-            document.getElementById('cancelBtn').disabled = true;
-            logMessage("Session closed or cancelled manually.");
-        }
-
-        function sendCliqueCheck() {
+        function fireCliqueAction() {
             if (ws && ws.readyState === WebSocket.OPEN) {
-                const packet = [{
+                printToTerminal("Button click down engagement processed. Dispatching network components...", "check-msg");
+                
+                const checksPacket = {
                     "cmd": "LocationChecks",
                     "locations": [69696969]
-                }];
-                ws.send(JSON.stringify(packet));
-                logMessage("Dispatched Payload: LocationChecks (Button Toggled)");
+                };
+                
+                const bouncePacket = {
+                    "cmd": "Bounce",
+                    "games": ["Clique"],
+                    "slots": [],
+                    "tags": [],
+                    "data": {
+                        "player": activePlayerSlot,
+                        "type": "click"
+                    }
+                };
+                
+                const consolidatedPayload = [checksPacket, bouncePacket];
+                ws.send(JSON.stringify(consolidatedPayload));
+                
+                document.getElementById('indicatorDot').className = "indicator-dot active";
+                document.getElementById('statusText').innerText = "Button Active";
+                printToTerminal("Cheat console: sending 'Button Activation' to Multiworld Room Logs.", "item-msg");
             } else {
-                logMessage("Action Blocked: Network pipe is not active.");
+                printToTerminal("Click ignored: Communication stream state is not ready.", "error-msg");
             }
         }
 
-        function sendGoalUpdate() {
+        function dispatchGoalPacket() {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const packet = [{"cmd": "StatusUpdate", "status": 30}];
                 ws.send(JSON.stringify(packet));
-                logMessage("Dispatched Payload: StatusUpdate (Goal Flag Fired)");
+                printToTerminal("Dispatched global room status tracking request: CLIENT_GOAL (30)", "check-msg");
             }
+        }
+
+        function killSessionNetwork() {
+            isForcedClose = true;
+            clearInterval(reconnectLoopTimer);
+            if (ws) { ws.close(); }
+            toggleInterfaceView('loginScreen');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('cancelBtn').disabled = true;
         }
     </script>
 </body>
